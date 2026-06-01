@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Revive – Mac-Frischekur ohne Neustart</title>
+  <meta name="description" content="Revive ist eine kostenlose macOS Menu-Bar-App die deinen Mac beschleunigt – ohne Neustart. RAM freigeben, Finder neustarten, DNS leeren – mit einem Klick.">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --teal:    #00c4d4;
+      --blue:    #0a72e6;
+      --yellow:  #ffd93d;
+      --bg:      #0d0f14;
+      --surface: #161a24;
+      --card:    #1e2333;
+      --border:  rgba(255,255,255,0.07);
+      --text:    #e8ecf4;
+      --muted:   #8891a8;
+      --radius:  16px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 2rem; height: 56px;
+      background: rgba(13,15,20,0.82);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-logo { display: flex; align-items: center; gap: .55rem; font-weight: 700; font-size: 1.05rem; }
+    .nav-logo svg { width: 26px; height: 26px; }
+    .nav-links { display: flex; gap: 1.8rem; }
+    .nav-links a { color: var(--muted); text-decoration: none; font-size: .9rem; transition: color .2s; }
+    .nav-links a:hover { color: var(--text); }
+    .nav-cta {
+      background: linear-gradient(135deg, var(--teal), var(--blue));
+      color: #fff; border: none; border-radius: 8px;
+      padding: .45rem 1.1rem; font-size: .88rem; font-weight: 600;
+      cursor: pointer; text-decoration: none; transition: opacity .2s;
+    }
+    .nav-cta:hover { opacity: .88; }
+
+    /* ── HERO ── */
+    .hero {
+      min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      text-align: center;
+      padding: 6rem 1.5rem 4rem;
+      position: relative; overflow: hidden;
+    }
+    .hero::before {
+      content: "";
+      position: absolute; top: -120px; left: 50%; transform: translateX(-50%);
+      width: 800px; height: 800px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(0,196,212,.13) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .app-icon-wrap {
+      width: 120px; height: 120px; margin: 0 auto 2rem;
+      border-radius: 27px;
+      background: linear-gradient(135deg, var(--teal), var(--blue));
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 20px 60px rgba(0,196,212,.35), 0 0 0 1px rgba(255,255,255,.08);
+      animation: float 4s ease-in-out infinite;
+      position: relative;
+    }
+    .app-icon-wrap svg.arrow { width: 60px; height: 60px; }
+    .bolt-badge {
+      position: absolute; bottom: -4px; right: -4px;
+      width: 36px; height: 36px; border-radius: 50%;
+      background: var(--bg); border: 2px solid var(--bg);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+    }
+    @keyframes float {
+      0%,100% { transform: translateY(0); }
+      50%      { transform: translateY(-10px); }
+    }
+
+    .badge {
+      display: inline-block; margin-bottom: 1.2rem;
+      background: rgba(0,196,212,.12); border: 1px solid rgba(0,196,212,.3);
+      color: var(--teal); border-radius: 100px; padding: .3rem .9rem;
+      font-size: .8rem; font-weight: 600; letter-spacing: .04em;
+    }
+
+    h1 {
+      font-size: clamp(2.4rem, 6vw, 4rem);
+      font-weight: 800; letter-spacing: -.03em; line-height: 1.1;
+      margin-bottom: 1.2rem;
+    }
+    h1 span {
+      background: linear-gradient(90deg, var(--teal), var(--blue));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+
+    .hero-sub {
+      font-size: clamp(1rem, 2.5vw, 1.2rem);
+      color: var(--muted); max-width: 540px; margin: 0 auto 2.4rem;
+    }
+
+    .cta-group { display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center; }
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: .5rem;
+      background: linear-gradient(135deg, var(--teal), var(--blue));
+      color: #fff; text-decoration: none; font-weight: 700;
+      font-size: 1rem; padding: .85rem 2rem; border-radius: 12px;
+      box-shadow: 0 8px 30px rgba(0,196,212,.3);
+      transition: transform .2s, box-shadow .2s;
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(0,196,212,.45); }
+    .btn-secondary {
+      display: inline-flex; align-items: center; gap: .5rem;
+      background: var(--card); border: 1px solid var(--border);
+      color: var(--text); text-decoration: none; font-weight: 600;
+      font-size: 1rem; padding: .85rem 1.6rem; border-radius: 12px;
+      transition: background .2s;
+    }
+    .btn-secondary:hover { background: #252b3d; }
+
+    .hero-note { margin-top: 1.2rem; color: var(--muted); font-size: .82rem; }
+    .hero-note svg { vertical-align: middle; margin-right: .3rem; }
+
+    /* ── MENUBAR MOCKUP ── */
+    .mockup-wrap {
+      margin: 4rem auto 0; max-width: 420px; width: 100%;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 14px; overflow: hidden;
+      box-shadow: 0 30px 80px rgba(0,0,0,.5);
+    }
+    .mockup-bar {
+      background: #1b1f2b; padding: .6rem 1rem;
+      display: flex; align-items: center; gap: .5rem;
+    }
+    .mockup-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .mockup-dot.r { background: #ff5f57; }
+    .mockup-dot.y { background: #febc2e; }
+    .mockup-dot.g { background: #28c840; }
+    .mockup-title { flex: 1; text-align: center; font-size: .78rem; color: var(--muted); }
+    .mockup-body { padding: 1.2rem 1.4rem; }
+    .menu-header { font-weight: 700; font-size: 1rem; margin-bottom: .8rem; display: flex; align-items: center; gap: .4rem; }
+    .menu-stat {
+      display: flex; align-items: center; gap: .5rem;
+      font-size: .85rem; color: var(--muted); margin-bottom: .3rem;
+    }
+    .stat-bar {
+      flex: 1; height: 6px; background: rgba(255,255,255,.08); border-radius: 3px; overflow: hidden;
+    }
+    .stat-fill {
+      height: 100%; border-radius: 3px;
+      background: linear-gradient(90deg, var(--teal), var(--blue));
+      animation: fillAnim 2s ease-out forwards;
+    }
+    .stat-fill.swap { background: linear-gradient(90deg, #ff6b6b, #ee0979); }
+    @keyframes fillAnim { from { width: 0; } }
+    .menu-sep { height: 1px; background: var(--border); margin: .8rem 0; }
+    .menu-item {
+      display: flex; align-items: center; gap: .6rem;
+      padding: .45rem .6rem; border-radius: 8px; font-size: .9rem;
+      cursor: default; transition: background .15s;
+    }
+    .menu-item:hover, .menu-item.active { background: rgba(0,196,212,.12); color: var(--teal); }
+    .menu-item .shortcut { margin-left: auto; font-size: .75rem; color: var(--muted); }
+
+    /* ── FEATURES ── */
+    section { padding: 6rem 1.5rem; }
+    .section-label {
+      text-align: center; text-transform: uppercase;
+      letter-spacing: .1em; font-size: .75rem; font-weight: 700;
+      color: var(--teal); margin-bottom: 1rem;
+    }
+    h2 {
+      text-align: center; font-size: clamp(1.8rem, 4vw, 2.6rem);
+      font-weight: 800; letter-spacing: -.02em; margin-bottom: 1rem;
+    }
+    .section-sub {
+      text-align: center; color: var(--muted);
+      max-width: 520px; margin: 0 auto 3.5rem; font-size: 1.05rem;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.2rem; max-width: 960px; margin: 0 auto;
+    }
+    .feature-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 1.6rem;
+      transition: transform .2s, border-color .2s;
+    }
+    .feature-card:hover { transform: translateY(-3px); border-color: rgba(0,196,212,.3); }
+    .feature-icon {
+      width: 44px; height: 44px; border-radius: 10px; margin-bottom: 1rem;
+      display: flex; align-items: center; justify-content: center; font-size: 1.3rem;
+    }
+    .fi-teal { background: rgba(0,196,212,.15); }
+    .fi-blue { background: rgba(10,114,230,.15); }
+    .fi-yellow { background: rgba(255,217,61,.12); }
+    .fi-red { background: rgba(255,90,90,.12); }
+    .feature-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: .4rem; }
+    .feature-card p { font-size: .88rem; color: var(--muted); line-height: 1.55; }
+
+    /* ── HOW IT WORKS ── */
+    .how-section { background: var(--surface); }
+    .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 2rem; max-width: 900px; margin: 0 auto; }
+    .step { text-align: center; }
+    .step-num {
+      width: 48px; height: 48px; border-radius: 50%; margin: 0 auto 1rem;
+      background: linear-gradient(135deg, var(--teal), var(--blue));
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 1.1rem;
+    }
+    .step h3 { font-size: .95rem; font-weight: 700; margin-bottom: .4rem; }
+    .step p  { font-size: .85rem; color: var(--muted); }
+
+    /* ── WHY ── */
+    .why-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; max-width: 900px; margin: 0 auto; align-items: center; }
+    @media (max-width: 700px) { .why-grid { grid-template-columns: 1fr; } }
+    .why-text h2 { text-align: left; }
+    .why-text .section-label { text-align: left; }
+    .why-text p { color: var(--muted); margin-bottom: 1rem; }
+    .check-list { list-style: none; display: flex; flex-direction: column; gap: .6rem; }
+    .check-list li { display: flex; align-items: flex-start; gap: .7rem; font-size: .93rem; }
+    .check-list li::before { content: "✓"; color: var(--teal); font-weight: 700; margin-top: .05rem; }
+    .ram-explainer {
+      background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem; font-size: .85rem;
+    }
+    .ram-row { display: flex; align-items: center; gap: .8rem; margin-bottom: .7rem; }
+    .ram-row:last-child { margin-bottom: 0; }
+    .ram-label { width: 90px; color: var(--muted); font-size: .8rem; flex-shrink: 0; }
+    .ram-bar { flex: 1; height: 10px; background: rgba(255,255,255,.06); border-radius: 5px; overflow: hidden; }
+    .ram-fill { height: 100%; border-radius: 5px; }
+    .ram-pct { width: 36px; text-align: right; font-size: .8rem; color: var(--muted); }
+
+    /* ── DOWNLOAD ── */
+    .download-section { text-align: center; }
+    .download-box {
+      display: inline-block; background: var(--card);
+      border: 1px solid var(--border); border-radius: 20px;
+      padding: 3rem 3.5rem; max-width: 520px;
+      box-shadow: 0 30px 80px rgba(0,0,0,.3);
+    }
+    .download-box .app-icon-wrap { margin-bottom: 1.2rem; width: 80px; height: 80px; border-radius: 18px; }
+    .download-box .app-icon-wrap svg.arrow { width: 40px; height: 40px; }
+    .download-box .bolt-badge { width: 24px; height: 24px; font-size: 12px; }
+    .download-box h2 { font-size: 1.7rem; text-align: center; margin-bottom: .4rem; }
+    .download-box .version { color: var(--muted); font-size: .85rem; margin-bottom: 1.8rem; }
+    .download-reqs { margin-top: 1.4rem; color: var(--muted); font-size: .82rem; }
+    .download-reqs span { margin: 0 .5rem; }
+
+    /* ── FOOTER ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 2rem 1.5rem; text-align: center;
+      color: var(--muted); font-size: .82rem;
+    }
+    footer a { color: var(--muted); }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 600px) {
+      .nav-links { display: none; }
+      .download-box { padding: 2rem 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">
+    <svg viewBox="0 0 26 26" fill="none">
+      <circle cx="13" cy="13" r="13" fill="url(#ng)"/>
+      <path d="M13 7.5A5.5 5.5 0 0 1 18.5 13" stroke="white" stroke-width="2" stroke-linecap="round" fill="none"/>
+      <path d="M18.5 13A5.5 5.5 0 0 1 13 18.5" stroke="white" stroke-width="2" stroke-linecap="round" fill="none"/>
+      <path d="M13 18.5A5.5 5.5 0 0 1 7.5 13" stroke="white" stroke-width="2" stroke-linecap="round" fill="none"/>
+      <path d="M10.5 7l2.5.5-.5 2.5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <text x="16.5" y="20" font-size="7" fill="#ffd93d">⚡</text>
+      <defs>
+        <linearGradient id="ng" x1="0" y1="0" x2="26" y2="26">
+          <stop offset="0%" stop-color="#00c4d4"/>
+          <stop offset="100%" stop-color="#0a72e6"/>
+        </linearGradient>
+      </defs>
+    </svg>
+    Revive
+  </div>
+  <div class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#how">So funktioniert's</a>
+    <a href="#why">Warum Revive?</a>
+    <a href="#download">Download</a>
+  </div>
+  <a href="#download" class="nav-cta">Kostenlos laden ↓</a>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="badge">Kostenlos · macOS 13+ · Menu-Bar-App</div>
+  <div class="app-icon-wrap">
+    <svg class="arrow" viewBox="0 0 60 60" fill="none">
+      <path d="M30 10A20 20 0 0 1 50 30" stroke="white" stroke-width="4.5" stroke-linecap="round"/>
+      <path d="M50 30A20 20 0 0 1 30 50" stroke="white" stroke-width="4.5" stroke-linecap="round"/>
+      <path d="M30 50A20 20 0 0 1 10 30" stroke="white" stroke-width="4.5" stroke-linecap="round"/>
+      <path d="M22 9l8 1.5-1.5 8" stroke="white" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <div class="bolt-badge">⚡</div>
+  </div>
+  <h1>Dein Mac. <span>Frisch.</span><br>Ohne Neustart.</h1>
+  <p class="hero-sub">
+    Nach Stunden oder Tagen ohne Neustart wird der Mac langsamer — Speicher fragmentiert, Swap läuft voll. Revive macht das rückgängig. In Sekunden.
+  </p>
+  <div class="cta-group">
+    <a href="#download" class="btn-primary">
+      <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor"><path d="M10 14l-5-5h3V4h4v5h3l-5 5z"/><rect x="3" y="15" width="14" height="2" rx="1"/></svg>
+      Revive laden — kostenlos
+    </a>
+    <a href="#how" class="btn-secondary">Wie es funktioniert →</a>
+  </div>
+  <p class="hero-note">
+    <svg width="13" height="13" viewBox="0 0 20 20" fill="#8891a8"><path d="M10 2a8 8 0 100 16A8 8 0 0010 2zm0 3a1 1 0 110 2 1 1 0 010-2zm0 4a1 1 0 011 1v4a1 1 0 11-2 0V10a1 1 0 011-1z"/></svg>
+    Keine Installation in System-Dateien · Open Source
+  </p>
+
+  <!-- Mockup -->
+  <div class="mockup-wrap">
+    <div class="mockup-bar">
+      <div class="mockup-dot r"></div>
+      <div class="mockup-dot y"></div>
+      <div class="mockup-dot g"></div>
+      <div class="mockup-title">Revive</div>
+    </div>
+    <div class="mockup-body">
+      <div class="menu-header">⚡ Revive</div>
+      <div class="menu-stat">
+        <span>🟡 RAM</span>
+        <div class="stat-bar"><div class="stat-fill" style="width:72%"></div></div>
+        <span style="font-size:.82rem;color:#8891a8;white-space:nowrap">11.5 / 16 GB</span>
+      </div>
+      <div class="menu-stat">
+        <span>🔴 Swap</span>
+        <div class="stat-bar"><div class="stat-fill swap" style="width:55%"></div></div>
+        <span style="font-size:.82rem;color:#8891a8;white-space:nowrap">2.2 GB</span>
+      </div>
+      <div class="menu-sep"></div>
+      <div class="menu-item active">⚡ Quick Refresh <span class="shortcut">⌘R</span></div>
+      <div class="menu-item">🧹 Deep Clean (sudo) <span class="shortcut">⌘D</span></div>
+      <div class="menu-sep"></div>
+      <div class="menu-item" style="color:var(--muted);font-size:.82rem">Einzelaktionen ▶</div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="section-label">Was Revive kann</div>
+  <h2>Alles was ein Neustart macht —<br>in unter 30 Sekunden</h2>
+  <p class="section-sub">Revive sitzt unauffällig in der Menu-Bar und greift ein wenn du es brauchst.</p>
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="feature-icon fi-teal">📊</div>
+      <h3>Live RAM & Swap Anzeige</h3>
+      <p>Sieh auf einen Blick wie viel Speicher dein Mac gerade nutzt — inklusive Auslagerungsdatei. Aktualisiert sich alle 5 Sekunden.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon fi-blue">⚡</div>
+      <h3>Quick Refresh</h3>
+      <p>Finder und DNS-Cache werden neu gestartet — kein Passwort, kein Warten. Behebt 80% der typischen Verlangsamungen sofort.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon fi-yellow">🧹</div>
+      <h3>Deep Clean mit RAM-Purge</h3>
+      <p>Gibt inaktiven Speicher komplett frei, leert den DNS-Cache und startet Finder & Dock neu. Einmalig macOS-Passwort eingeben, fertig.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon fi-red">🔧</div>
+      <h3>Einzelaktionen</h3>
+      <p>Finder, Dock, DNS, User-Caches oder RAM-Purge einzeln auslösen — für präzise Eingriffe ohne alles andere anzufassen.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon fi-teal">🎯</div>
+      <h3>Kein Dock-Icon, kein Ballast</h3>
+      <p>Revive lebt ausschließlich in der Menu-Bar. Kein Fenster, kein Dock-Eintrag, kein Hintergrundlärm. Startet schnell, bleibt unsichtbar.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon fi-blue">🆓</div>
+      <h3>Kostenlos & Open Source</h3>
+      <p>Revive ist komplett kostenlos. Kein Abo, keine In-App-Käufe, keine Telemetrie. Der Quellcode ist öffentlich einsehbar.</p>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section id="how" class="how-section">
+  <div class="section-label">So funktioniert's</div>
+  <h2>Drei Schritte zur frischen Performance</h2>
+  <p class="section-sub">Kein Setup, keine Konfiguration — einfach laden, starten, fertig.</p>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <h3>Laden & öffnen</h3>
+      <p>Revive.app in den Programme-Ordner ziehen und öffnen. Das Icon erscheint sofort in der Menu-Bar.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <h3>Speicher beobachten</h3>
+      <p>RAM-Auslastung und Swap live im Blick. Sobald die Anzeige rot wird ist es Zeit zum Handeln.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <h3>Einen Klick drücken</h3>
+      <p>Quick Refresh oder Deep Clean — und der Mac läuft wieder flüssig. Kein Neustart, keine geschlossenen Apps.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <h3>Autostart einrichten</h3>
+      <p>Optional: In Systemeinstellungen → Anmeldesobjekte eintragen. Revive ist dann immer bereit.</p>
+    </div>
+  </div>
+</section>
+
+<!-- WHY -->
+<section id="why">
+  <div class="why-grid">
+    <div class="why-text">
+      <div class="section-label">Warum wird der Mac langsamer?</div>
+      <h2>macOS hortet Speicher —<br>klug, aber problematisch</h2>
+      <p>macOS gibt RAM nie freiwillig auf. Apps die du schließt bleiben als "inaktiver Speicher" im RAM — falls du sie nochmal brauchst. Nach Stunden wird dieser Puffer riesig, neuer Speicherbedarf verdrängt ihn langsam — und dazwischen lagert macOS auf die SSD aus.</p>
+      <p>Das Ergebnis: der Mac wird langsamer, die Lüfter drehen hoch, die SSD schreibt unnötig.</p>
+      <ul class="check-list">
+        <li>Swap-Datei belastet die SSD und ist viel langsamer als RAM</li>
+        <li>Fragmentierter inaktiver Speicher blockiert neue Prozesse</li>
+        <li>DNS-Cache und Finder häufen Lecks über Zeit an</li>
+        <li>Ein Neustart hilft — aber schließt alle Apps und kostet Zeit</li>
+      </ul>
+    </div>
+    <div>
+      <div class="ram-explainer">
+        <div style="font-size:.78rem;color:var(--muted);margin-bottom:1rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em">RAM-Belegung nach 12h Betrieb</div>
+        <div class="ram-row">
+          <div class="ram-label">Active</div>
+          <div class="ram-bar"><div class="ram-fill" style="width:35%;background:linear-gradient(90deg,#00c4d4,#0a72e6)"></div></div>
+          <div class="ram-pct">35%</div>
+        </div>
+        <div class="ram-row">
+          <div class="ram-label">Wired</div>
+          <div class="ram-bar"><div class="ram-fill" style="width:18%;background:#a78bfa"></div></div>
+          <div class="ram-pct">18%</div>
+        </div>
+        <div class="ram-row">
+          <div class="ram-label">Compressed</div>
+          <div class="ram-bar"><div class="ram-fill" style="width:12%;background:#f59e0b"></div></div>
+          <div class="ram-pct">12%</div>
+        </div>
+        <div class="ram-row">
+          <div class="ram-label" style="color:var(--teal)">Inactive ⬅</div>
+          <div class="ram-bar"><div class="ram-fill" style="width:28%;background:linear-gradient(90deg,rgba(0,196,212,.4),rgba(0,196,212,.15))"></div></div>
+          <div class="ram-pct">28%</div>
+        </div>
+        <div class="ram-row">
+          <div class="ram-label">Free</div>
+          <div class="ram-bar"><div class="ram-fill" style="width:7%;background:rgba(255,255,255,.2)"></div></div>
+          <div class="ram-pct">7%</div>
+        </div>
+        <div style="margin-top:1.1rem;padding-top:.9rem;border-top:1px solid var(--border);font-size:.8rem;color:var(--teal)">
+          ✓ Revive gibt den Inactive-Block sofort frei
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DOWNLOAD -->
+<section id="download" class="download-section">
+  <div class="section-label">Download</div>
+  <div class="download-box">
+    <div class="app-icon-wrap">
+      <svg class="arrow" viewBox="0 0 60 60" fill="none">
+        <path d="M30 10A20 20 0 0 1 50 30" stroke="white" stroke-width="4.5" stroke-linecap="round"/>
+        <path d="M50 30A20 20 0 0 1 30 50" stroke="white" stroke-width="4.5" stroke-linecap="round"/>
+        <path d="M30 50A20 20 0 0 1 10 30" stroke="white" stroke-width="4.5" stroke-linecap="round"/>
+        <path d="M22 9l8 1.5-1.5 8" stroke="white" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div class="bolt-badge">⚡</div>
+    </div>
+    <h2>Revive</h2>
+    <p class="version">Version 1.0 · Kostenlos</p>
+    <a href="Revive.zip" class="btn-primary" style="width:100%;justify-content:center;font-size:1.05rem">
+      <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor"><path d="M10 14l-5-5h3V4h4v5h3l-5 5z"/><rect x="3" y="15" width="14" height="2" rx="1"/></svg>
+      Revive.zip herunterladen
+    </a>
+    <p class="download-reqs">
+      <span>🍎 macOS 13 Ventura oder neuer</span>
+      <span>·</span>
+      <span>Apple Silicon & Intel</span>
+    </p>
+    <div style="margin-top:1.4rem;background:rgba(255,255,255,.04);border-radius:10px;padding:1rem;font-size:.82rem;color:var(--muted);text-align:left">
+      <strong style="color:var(--text)">Installation:</strong><br>
+      ZIP entpacken → <code style="background:rgba(255,255,255,.08);padding:.1rem .4rem;border-radius:4px">Revive.app</code> in Programme ziehen → öffnen.<br>
+      Beim ersten Start: Rechtsklick → "Öffnen" um den Gatekeeper-Dialog zu umgehen.
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <p>
+    Revive wurde mit ❤ gebaut für alle die ihren Mac lieber auffrischen als neu starten.
+    <span style="margin:0 .6rem">·</span>
+    <a href="https://github.com/">Quellcode auf GitHub</a>
+  </p>
+  <p style="margin-top:.5rem">© 2025 SpeedNeo · MIT-Lizenz</p>
+</footer>
+
+<script>
+  // Animate stat bars on scroll
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.querySelectorAll('.ram-fill, .stat-fill').forEach(bar => {
+          bar.style.animation = 'none';
+          bar.offsetHeight;
+          bar.style.animation = '';
+        });
+      }
+    });
+  }, { threshold: 0.3 });
+
+  document.querySelectorAll('.ram-explainer, .mockup-wrap').forEach(el => observer.observe(el));
+
+  // Smooth active state on mockup items (demo)
+  document.querySelectorAll('.menu-item').forEach(item => {
+    item.addEventListener('mouseenter', () => {
+      document.querySelectorAll('.menu-item').forEach(i => i.classList.remove('active'));
+      item.classList.add('active');
+    });
+  });
+</script>
+</body>
+</html>
