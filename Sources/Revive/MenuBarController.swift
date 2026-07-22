@@ -70,6 +70,11 @@ class MenuBarController: NSObject {
 
         menu.addItem(.separator())
 
+        // Clean restart
+        menu.addItem(makeItem("🔄 Sauber neustarten…", #selector(cleanRestart), ""))
+
+        menu.addItem(.separator())
+
         // Last result feedback
         lastResultMenuItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
         lastResultMenuItem.isEnabled = false
@@ -147,6 +152,23 @@ class MenuBarController: NSObject {
 
     @objc private func clearCaches() {
         SystemCleaner.perform(.clearUserCaches) { [weak self] r in self?.showResult(r) }
+    }
+
+    @objc private func cleanRestart() {
+        let alert = NSAlert()
+        alert.messageText = "Sauber neustarten?"
+        alert.informativeText = "Der Mac wird neu gestartet. Geöffnete Fenster und Apps werden dabei NICHT wiederhergestellt."
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "Jetzt neustarten")
+        alert.addButton(withTitle: "Abbrechen")
+
+        NSApp.activate(ignoringOtherApps: true)
+        let response = alert.runModal()
+        guard response == .alertFirstButtonReturn else { return }
+
+        SystemCleaner.perform(.cleanRestart) { [weak self] r in
+            self?.showResult(r)
+        }
     }
 
     @objc private func quitApp() {

@@ -7,6 +7,7 @@ enum CleanAction {
     case purgeRAM
     case clearUserCaches
     case restartWindowManager
+    case cleanRestart
 
     var label: String {
         switch self {
@@ -16,6 +17,7 @@ enum CleanAction {
         case .purgeRAM:             return "RAM freigeben (sudo)"
         case .clearUserCaches:      return "User-Caches leeren"
         case .restartWindowManager: return "WindowServer neu starten (Vorsicht!)"
+        case .cleanRestart:         return "Sauber neustarten"
         }
     }
 }
@@ -114,6 +116,27 @@ struct SystemCleaner {
             // This logs the user out visually — warn before using
             run("killall -KILL WindowServer")
             completion("WindowServer neugestartet")
+
+        case .cleanRestart:
+            // Disable window restore, then restart via AppleScript (shows macOS restart dialog)
+            DispatchQueue.global().async {
+                // Temporarily turn off "Reopen windows when logging back in"
+                run("defaults write com.apple.loginwindow TALLogoutSavesState -bool false")
+                run("defaults write com.apple.loginwindow LoginwindowLaunchesRelaunchApps -bool false")
+                var error: NSDictionary?
+                let script = """
+                    tell application "System Events"
+                        restart
+                    end tell
+                    """
+                NSAppleScript(source: script)?.executeAndReturnError(&error)
+                if error != nil {
+                    // Restore defaults if restart was cancelled
+                    run("defaults delete com.apple.loginwindow TALLogoutSavesState")
+                    run("defaults delete com.apple.loginwindow LoginwindowLaunchesRelaunchApps")
+                    DispatchQueue.main.async { completion("⚠ Neustart abgebrochen") }
+                }
+            }
         }
     }
 
