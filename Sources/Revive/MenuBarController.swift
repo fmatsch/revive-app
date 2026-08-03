@@ -5,6 +5,8 @@ class MenuBarController: NSObject {
     private var statsMenuItem: NSMenuItem!
     private var swapMenuItem: NSMenuItem!
     private var lastResultMenuItem: NSMenuItem!
+    private var antiSleepMenuItem: NSMenuItem!
+    private var autostartMenuItem: NSMenuItem!
     private var timer: Timer?
 
     override init() {
@@ -67,6 +69,18 @@ class MenuBarController: NSObject {
         let subParent = NSMenuItem(title: "Einzelaktionen", action: nil, keyEquivalent: "")
         menu.addItem(subParent)
         menu.setSubmenu(sub, for: subParent)
+
+        menu.addItem(.separator())
+
+        // Anti-sleep toggle
+        antiSleepMenuItem = makeItem("☕ Anti-Sleep", #selector(toggleAntiSleep), "")
+        antiSleepMenuItem.state = AntiSleepService.shared.isActive ? .on : .off
+        menu.addItem(antiSleepMenuItem)
+
+        // Autostart toggle
+        autostartMenuItem = makeItem("🚀 Autostart beim Login", #selector(toggleAutostart), "")
+        autostartMenuItem.state = AutostartService.isEnabled ? .on : .off
+        menu.addItem(autostartMenuItem)
 
         menu.addItem(.separator())
 
@@ -152,6 +166,18 @@ class MenuBarController: NSObject {
 
     @objc private func clearCaches() {
         SystemCleaner.perform(.clearUserCaches) { [weak self] r in self?.showResult(r) }
+    }
+
+    @objc private func toggleAntiSleep() {
+        let active = AntiSleepService.shared.toggle()
+        antiSleepMenuItem.state = active ? .on : .off
+        showResult(active ? "☕ Anti-Sleep aktiv — Mac schläft nicht ein" : "😴 Anti-Sleep deaktiviert")
+    }
+
+    @objc private func toggleAutostart() {
+        let enabled = AutostartService.toggle()
+        autostartMenuItem.state = enabled ? .on : .off
+        showResult(enabled ? "🚀 Revive startet jetzt automatisch beim Login" : "Autostart deaktiviert")
     }
 
     @objc private func cleanRestart() {
