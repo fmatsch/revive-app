@@ -1,6 +1,80 @@
 import Foundation
 import Darwin
 
+// MARK: - CPU
+
+struct CPUStats {
+    let usagePercent: Int
+
+    var emoji: String {
+        switch usagePercent {
+        case 0..<50: return "🟢"
+        case 50..<80: return "🟡"
+        default:      return "🔴"
+        }
+    }
+
+    // Samples two snapshots ~200 ms apart for an accurate delta.
+    static func current() -> CPUStats {
+        func load() -> (user: UInt32, sys: UInt32, idle: UInt32) {
+            var info = host_cpu_load_info()
+            var count = mach_msg_type_number_t(
+                MemoryLayout<host_cpu_load_info_data_t>.size / MemoryLayout<integer_t>.size
+            )
+            withUnsafeMutablePointer(to: &info) {
+                $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
+                    host_statistics(mach_host_self(), HOST_CPU_LOAD_INFO, $0, &count)
+                }
+            }
+            return (info.cpu_ticks.0, info.cpu_ticks.1, info.cpu_ticks.3)
+        }
+
+        let a = load()
+        Thread.sleep(forTimeInterval: 0.2)
+        let b = load()
+
+        let user = Int(b.user) - Int(a.user)
+        let sys  = Int(b.sys)  - Int(a.sys)
+        let idle = Int(b.idle) - Int(a.idle)
+        let total = user + sys + idle
+        guard total > 0 else { return CPUStats(usagePercent: 0) }
+        return CPUStats(usagePercent: Int(Double(user + sys) / Double(total) * 100))
+    }
+}
+
+// MARK: - Disk
+
+struct DiskStats {
+    let totalGB: Double
+    let usedGB: Double
+    let freeGB: Double
+
+    var usagePercent: Int { Int((usedGB / totalGB) * 100) }
+
+    var emoji: String {
+        switch usagePercent {
+        case 0..<70: return "🟢"
+        case 70..<90: return "🟡"
+        default:      return "🔴"
+        }
+    }
+
+    static func current() -> DiskStats {
+        let attrs = (try? FileManager.default.attributesOfFileSystem(forPath: "/")) ?? [:]
+        let total = (attrs[.systemSize] as? Int64) ?? 0
+        let free  = (attrs[.systemFreeSize] as? Int64) ?? 0
+        let used  = total - free
+        let gb    = 1_073_741_824.0
+        return DiskStats(
+            totalGB: Double(total) / gb,
+            usedGB:  Double(used)  / gb,
+            freeGB:  Double(free)  / gb
+        )
+    }
+}
+
+// MARK: - Memory
+
 struct MemoryStats {
     let totalGB: Double
     let usedGB: Double

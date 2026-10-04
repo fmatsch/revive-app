@@ -4,6 +4,8 @@ class MenuBarController: NSObject {
     private var statusItem: NSStatusItem
     private var statsMenuItem: NSMenuItem!
     private var swapMenuItem: NSMenuItem!
+    private var cpuMenuItem: NSMenuItem!
+    private var diskMenuItem: NSMenuItem!
     private var lastResultMenuItem: NSMenuItem!
     private var antiSleepMenuItem: NSMenuItem!
     private var autostartMenuItem: NSMenuItem!
@@ -49,6 +51,14 @@ class MenuBarController: NSObject {
         swapMenuItem = NSMenuItem(title: "Swap: …", action: nil, keyEquivalent: "")
         swapMenuItem.isEnabled = false
         menu.addItem(swapMenuItem)
+
+        cpuMenuItem = NSMenuItem(title: "CPU: …", action: nil, keyEquivalent: "")
+        cpuMenuItem.isEnabled = false
+        menu.addItem(cpuMenuItem)
+
+        diskMenuItem = NSMenuItem(title: "Disk: …", action: nil, keyEquivalent: "")
+        diskMenuItem.isEnabled = false
+        menu.addItem(diskMenuItem)
 
         menu.addItem(.separator())
 
@@ -112,16 +122,31 @@ class MenuBarController: NSObject {
     }
 
     private func updateStats() {
-        let s = MemoryStats.current()
+        let mem = MemoryStats.current()
         statsMenuItem.title = String(
             format: "%@ RAM: %.1f / %.0f GB  (%d%%)",
-            s.pressureEmoji, s.usedGB, s.totalGB, s.pressurePercent
+            mem.pressureEmoji, mem.usedGB, mem.totalGB, mem.pressurePercent
         )
-        let swapIcon = s.swapUsedGB > 1.0 ? "🔴" : "🟢"
+        let swapIcon = mem.swapUsedGB > 1.0 ? "🔴" : "🟢"
         swapMenuItem.title = String(
             format: "%@ Swap: %.1f GB genutzt",
-            swapIcon, s.swapUsedGB
+            swapIcon, mem.swapUsedGB
         )
+        let disk = DiskStats.current()
+        diskMenuItem.title = String(
+            format: "%@ Disk: %.0f / %.0f GB  (%d%% voll)",
+            disk.emoji, disk.usedGB, disk.totalGB, disk.usagePercent
+        )
+        // CPU sampling is blocking (200 ms) — run off main thread
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let cpu = CPUStats.current()
+            DispatchQueue.main.async {
+                self?.cpuMenuItem.title = String(
+                    format: "%@ CPU: %d%%",
+                    cpu.emoji, cpu.usagePercent
+                )
+            }
+        }
     }
 
     // MARK: - Actions
