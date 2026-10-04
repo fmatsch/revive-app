@@ -6,6 +6,7 @@ enum CleanAction {
     case flushDNS
     case purgeRAM
     case clearUserCaches
+    case clearAppCaches
     case restartWindowManager
     case cleanRestart
 
@@ -16,6 +17,7 @@ enum CleanAction {
         case .flushDNS:             return "DNS-Cache leeren"
         case .purgeRAM:             return "RAM freigeben (sudo)"
         case .clearUserCaches:      return "User-Caches leeren"
+        case .clearAppCaches:       return "App-Caches leeren"
         case .restartWindowManager: return "WindowServer neu starten (Vorsicht!)"
         case .cleanRestart:         return "Sauber neustarten"
         }
@@ -98,19 +100,50 @@ struct SystemCleaner {
             }
 
         case .clearUserCaches:
-            let cacheDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
-            var freed = 0
-            let fm = FileManager.default
-            if let items = try? fm.contentsOfDirectory(at: cacheDir, includingPropertiesForKeys: [.fileSizeKey]) {
-                for item in items {
-                    if let size = try? item.resourceValues(forKeys: [.fileSizeKey]).fileSize {
-                        freed += size
+            let freed = clearDirectory(
+                FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!,
+                skip: []
+            )
+            completion("✓ User-Caches geleert (\(formatBytes(freed)))")
+
+        case .clearAppCaches:
+            DispatchQueue.global().async {
+                let fm = FileManager.default
+                let cacheDir = fm.urls(for: .cachesDirectory, in: .userDomainMask).first!
+
+                // Only clear contents of per-app cache folders, not the folders themselves
+                let skipBundles: Set<String> = [
+                    "com.apple.bird",          // iCloud daemon
+                    "com.apple.MediaAnalysis", // Photos ML
+                    "com.apple.containermanagerd"
+                ]
+
+                var totalFreed: Int64 = 0
+                var appCount = 0
+
+                if let appDirs = try? fm.contentsOfDirectory(at: cacheDir, includingPropertiesForKeys: [.isDirectoryKey]) {
+                    for appDir in appDirs {
+                        let name = appDir.lastPathComponent
+                        guard skipBundles.contains(name) == false else { continue }
+                        guard (try? appDir.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true else { continue }
+
+                        // Clear contents but keep the folder itself
+                        if let contents = try? fm.contentsOfDirectory(at: appDir, includingPropertiesForKeys: [.fileSizeKey, .totalFileSizeKey]) {
+                            for item in contents {
+                                let size = Int64((try? fm.allocatedSizeOf(item)) ?? 0)
+                                if (try? fm.removeItem(at: item)) != nil {
+                                    totalFreed += size
+                                }
+                            }
+                            appCount += 1
+                        }
                     }
-                    try? fm.removeItem(at: item)
+                }
+
+                DispatchQueue.main.async {
+                    completion("✓ App-Caches geleert – \(appCount) Apps, \(formatBytes(Int(totalFreed))) freigegeben")
                 }
             }
-            let mb = freed / 1_048_576
-            completion("✓ User-Caches geleert (~\(mb) MB)")
 
         case .restartWindowManager:
             // This logs the user out visually — warn before using
@@ -150,5 +183,38 @@ struct SystemCleaner {
         try? task.run()
         task.waitUntilExit()
         return task.terminationStatus == 0
+    }
+
+    // Deletes all items inside `dir`, optionally skipping entries by lastPathComponent.
+    // Returns total bytes freed (best-effort).
+    private static func clearDirectory(_ dir: URL, skip: Set<String>) -> Int {
+        let fm = FileManager.default
+        var freed = 0
+        guard let items = try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: [.fileSizeKey]) else { return 0 }
+        for item in items {
+            guard !skip.contains(item.lastPathComponent) else { continue }
+            freed += (try? fm.allocatedSizeOf(item)) ?? 0
+            try? fm.removeItem(at: item)
+        }
+        return freed
+    }
+}
+
+private func formatBytes(_ bytes: Int) -> String {
+    if bytes >= 1_073_741_824 { return String(format: "%.1f GB", Double(bytes) / 1_073_741_824) }
+    if bytes >= 1_048_576     { return String(format: "%.0f MB", Double(bytes) / 1_048_576) }
+    return "\(bytes / 1024) KB"
+}
+
+extension FileManager {
+    func allocatedSizeOf(_ url: URL) throws -> Int {
+        var total: Int64 = 0
+        if let enumerator = enumerator(at: url, includingPropertiesForKeys: [.totalFileAllocatedSizeKey, .fileAllocatedSizeKey]) {
+            for case let fileURL as URL in enumerator {
+                let vals = try fileURL.resourceValues(forKeys: [.totalFileAllocatedSizeKey, .fileAllocatedSizeKey])
+                total += Int64(vals.totalFileAllocatedSize ?? vals.fileAllocatedSize ?? 0)
+            }
+        }
+        return Int(total)
     }
 }

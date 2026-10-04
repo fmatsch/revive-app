@@ -64,6 +64,7 @@ class MenuBarController: NSObject {
         sub.addItem(makeItem("Dock neu starten",       #selector(restartDock),     ""))
         sub.addItem(makeItem("DNS-Cache leeren",       #selector(flushDNS),        ""))
         sub.addItem(makeItem("RAM-Purge (sudo)",       #selector(purgeRAM),        ""))
+        sub.addItem(makeItem("App-Caches leeren",      #selector(clearAppCaches),  ""))
         sub.addItem(makeItem("User-Caches leeren",     #selector(clearCaches),     ""))
 
         let subParent = NSMenuItem(title: "Einzelaktionen", action: nil, keyEquivalent: "")
@@ -161,6 +162,14 @@ class MenuBarController: NSObject {
             self?.setButtonSpinning(false)
             self?.showResult(r)
             self?.updateStats()
+        }
+    }
+
+    @objc private func clearAppCaches() {
+        setButtonSpinning(true)
+        SystemCleaner.perform(.clearAppCaches) { [weak self] r in
+            self?.setButtonSpinning(false)
+            self?.showResult(r)
         }
     }
 
