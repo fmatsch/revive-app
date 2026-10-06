@@ -26,7 +26,7 @@ struct CPUStats {
                     host_statistics(mach_host_self(), HOST_CPU_LOAD_INFO, $0, &count)
                 }
             }
-            return (info.cpu_ticks.0, info.cpu_ticks.1, info.cpu_ticks.3)
+            return (info.cpu_ticks.0, info.cpu_ticks.1, info.cpu_ticks.2)
         }
 
         let a = load()
